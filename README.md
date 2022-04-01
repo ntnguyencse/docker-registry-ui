@@ -2,6 +2,7 @@
 title: Docker Registry User Interface
 ---
 
+
 # Docker Registry UI
 
 ![Stars](https://img.shields.io/github/stars/joxit/docker-registry-ui.svg?logo=github&maxAge=86400)
@@ -49,6 +50,47 @@ This web user interface uses [Riot](https://github.com/Riot/riot) the react-like
 -   Filter images and tags with a search bar. You can select the search bar with the shortcut `CRTL` + `F` or `F3`. When the search bar is already focused, the shortcut will fallback to the default behavior (see [#213](https://github.com/Joxit/docker-registry-ui/issues/213)).
 -   **Forward** custom header to your backend registry via environment variable and file via `NGINX_PROXY_PASS_HEADER_*` (see [#206](https://github.com/Joxit/docker-registry-ui/pull/206)).
 -   Run the container with user nginx instead of root via `--user nginx` and listend on custom port via `NGINX_LISTEN_PORT` (see [#224](https://github.com/Joxit/docker-registry-ui/issues/224)).
+
+## Deploy UI as Stand alone Registry
+### Change /etc/hosts
+Change file /etc/hosts for machine hosted registry, (CORS prevention)
+Add domain name for machine. Example:
+```
+192.168.24.10 registry 
+# registry is domain name of registry UI
+# Save and exit
+# docker compose up at [simple.yaml](docker-registry-ui/examples/ui-as-standalone)
+```
+### Set up for pull and push
+Add insecure registry to deamon.json in Docker by this [Tutorial](https://docs.docker.com/registry/insecure/)
+```
+# /etc/docker/daemon.json
+"insecure-registries" : ["192.168.24.10:5000"]
+```
+### Optional: Install NGINX and setup proxy pass
+Add to config file:
+```
+
+        location / {
+        # Do not allow connections from docker 1.5 and earlier
+        # docker pre-1.6.0 did not properly set the user agent on ping, catch "Go *" user agents
+         if ($http_user_agent ~ "^(docker\/1\.(3|4|5(?!\.[0-9]-dev))|Go ).*$" ) {
+         return 404;
+                 }
+
+         proxy_pass                          http://localhost:80;
+        proxy_hide_header Access-Control-Allow-Origin;
+         add_header Access-Control-Allow-Origin *;
+         proxy_set_header  Host              $http_host;   # required for docker client's sake
+        #       proxy_set_header Host           http://localhostii;
+         proxy_set_header  X-Real-IP         $remote_addr; # pass on real client's IP
+         proxy_set_header  X-Forwarded-For   $proxy_add_x_forwarded_for;
+         proxy_set_header  X-Forwarded-Proto $scheme;
+         proxy_read_timeout                  900;
+        }
+
+```
+Restart NGINX
 
 ## FAQ
 
